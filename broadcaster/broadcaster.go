@@ -27,7 +27,7 @@ func (b *Broadcaster) serve() {
 	r.HandleFunc("/events", b.handle)
 	r.Use(b.preHandle1)
 	r.Use(b.preHandle2)
-	// r.Use(b.loginAndSubscribe)
+	r.Use(b.loginAndSubscribe)
 	http.ListenAndServe(":8080", r)
 }
 
@@ -43,7 +43,6 @@ func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
 func (b *Broadcaster) preHandle1(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("STEP 1")
-		b.Server.Publish("messages", &sse.Event{Data: []byte("ping")})
 		next.ServeHTTP(w, r)
 	})
 }
@@ -61,7 +60,7 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 		teamName := r.Header.Get("Cookie")
 		log.Printf("Client %s logged succesfully", r.RemoteAddr)
 		// Create dedicated stream if it doesn't exists
-		if !b.Server.StreamExists(teamName) {
+		if !b.Server.StreamExists(teamName) && teamName != "" {
 			b.Server.CreateStream(teamName)
 			log.Printf("Stream for the team %s created", teamName)
 		}
@@ -75,5 +74,5 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 }
 
 func (b *Broadcaster) testHandler(w http.ResponseWriter, r *http.Request) {
-	b.Server.Publish("messages", &sse.Event{Data: []byte("ping")})
+	b.Server.Publish("coucou", &sse.Event{Data: []byte("ping")})
 }
