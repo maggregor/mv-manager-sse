@@ -6,6 +6,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse/v2"
+
+	p "github.com/achilio/mv-manager-sse/broadcaster"
 )
 
 type Broadcaster struct {
@@ -16,8 +18,9 @@ func main() {
 	server := sse.New()
 	b := &Broadcaster{server}
 	r := mux.NewRouter()
+	r.HandleFunc("/", p.PubSub)
 	r.HandleFunc("/events", b.handle)
-	r.Use(b.loggingMiddleware)
+	r.Use(b.loginAndSubscribe)
 	http.ListenAndServe(":8080", r)
 }
 
@@ -32,7 +35,7 @@ func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login and set the dedicated stream
-func (b *Broadcaster) loggingMiddleware(next http.Handler) http.Handler {
+func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		teamName := r.Header.Get("Cookie")
 		log.Printf("Client %s logged succesfully", r.RemoteAddr)
