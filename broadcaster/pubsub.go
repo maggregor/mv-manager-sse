@@ -8,7 +8,6 @@ import (
 )
 
 // Attributes is the payload of the attributes field in the message of a Pub/Sub event.
-// For the Terraform executor to work for Achilio's Terraview, it needs to follow this structure
 type Attributes struct {
 	TeamName  string `json:"teamName"`
 	ProjectID string `json:"projectId"`
