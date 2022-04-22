@@ -1,4 +1,4 @@
-package main
+package broadcaster
 
 import (
 	"encoding/json"
