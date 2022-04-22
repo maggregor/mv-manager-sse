@@ -33,7 +33,7 @@ type PubSubMessage struct {
 }
 
 // PubSub receives and processes a Pub/Sub push message.
-func PubSub(w http.ResponseWriter, r *http.Request) {
+func pubSubHandle(w http.ResponseWriter, r *http.Request) {
 	var m PubSubMessage
 	body, err := ioutil.ReadAll(r.Body)
 	log.Printf("%s", string(body))
