@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -23,26 +24,28 @@ func main() {
 func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-r.Context().Done()
-		// Received Browser Disconnection
+		log.Printf("Client %s disconnected", r.RemoteAddr)
 		return
 	}()
 
 	b.Server.ServeHTTP(w, r)
 }
 
+// Login and set the dedicated stream
 func (b *Broadcaster) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		teamName := r.Header.Get("Cookie")
+		log.Printf("Client %s logged succesfully", r.RemoteAddr)
+		// Create dedicated stream if it doesn't exists
+		if !b.Server.StreamExists(teamName) {
+			b.Server.CreateStream(teamName)
+			log.Printf("Stream for the team %s created", teamName)
+		}
+		// Add stream parameter in the URL for the r3labs/sse lib
 		values := r.URL.Query()
 		values.Set("stream", teamName)
 		r.URL.RawQuery = values.Encode()
-		b.Server.CreateStream(teamName)
+		log.Printf("Subscribe %s for the team %s", teamName, r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (b *Broadcaster) CreateTeamStream(teamName string) {
-	if !b.Server.StreamExists(teamName) {
-		b.Server.CreateStream(teamName)
-	}
 }
