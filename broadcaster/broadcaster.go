@@ -27,7 +27,7 @@ func (b *Broadcaster) serve() {
 	subscribe := r.PathPrefix("/subscribe").Subrouter()
 	subscribe.Use(b.preHandle1)
 	subscribe.Use(b.loginAndSubscribe)
-	subscribe.HandleFunc("", b.handle)
+	subscribe.HandleFunc("", b.subscribeHandle)
 
 	events := r.PathPrefix("/events").Subrouter()
 	events.Use(b.preHandle2)
@@ -35,7 +35,7 @@ func (b *Broadcaster) serve() {
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
+func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-r.Context().Done()
 		log.Printf("Client %s disconnected", r.RemoteAddr)
@@ -64,7 +64,7 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 		teamName := r.Header.Get("Cookie")
 		log.Printf("Client %s logged succesfully", r.RemoteAddr)
 		// Create dedicated stream if it doesn't exists
-		if !b.Server.StreamExists(teamName) && teamName != "" {
+		if !b.Server.StreamExists(teamName) {
 			b.Server.CreateStream(teamName)
 			log.Printf("Stream for the team %s created", teamName)
 		}
@@ -94,6 +94,9 @@ func (b *Broadcaster) pubSubHandle(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Executing message %v", m.Message.ID)
 	e := &SseEvent{Event: m.Message.Attributes.Type, ProjectId: m.Message.Attributes.ProjectID}
-	data, _ := json.Marshal(e)
+	data, err := json.Marshal(e)
+	if err != nil {
+		log.Printf("Error while serializing event response: %v", err)
+	}
 	b.Server.Publish(m.Message.Attributes.TeamName, &sse.Event{Data: data})
 }
