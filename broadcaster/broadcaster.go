@@ -24,13 +24,15 @@ func Serve() {
 func (b *Broadcaster) serve() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", b.pubSubHandle)
-	r.HandleFunc("/test", b.testHandler)
-	r.HandleFunc("/events", b.handle)
-	r.Use(b.preHandle1)
-	r.Use(b.preHandle2)
-	r.Use(b.loginAndSubscribe)
-	http.ListenAndServe(":8080", r)
+	subscribe := r.PathPrefix("/subscribe").Subrouter()
+	subscribe.Use(b.preHandle1)
+	subscribe.Use(b.loginAndSubscribe)
+	subscribe.HandleFunc("", b.handle)
+
+	events := r.PathPrefix("/events").Subrouter()
+	events.Use(b.preHandle2)
+	events.HandleFunc("", b.pubSubHandle)
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
 func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
@@ -44,14 +46,14 @@ func (b *Broadcaster) handle(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broadcaster) preHandle1(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("STEP 1")
+		log.Println("JWT VALIDATION OF CLIENT")
 		next.ServeHTTP(w, r)
 	})
 }
 
 func (b *Broadcaster) preHandle2(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("STEP 2")
+		log.Println("JWT VALIDATION OF PUBSUB SERVICE ACCOUNT")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -73,10 +75,6 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 		log.Printf("Subscribe %s for the team %s", teamName, r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (b *Broadcaster) testHandler(w http.ResponseWriter, r *http.Request) {
-	b.Server.Publish("coucou", &sse.Event{Data: []byte("ping")})
 }
 
 // PubSub receives and processes a Pub/Sub push message.

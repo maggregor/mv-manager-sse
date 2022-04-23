@@ -8,4 +8,4 @@ JSON_STRING=$(jq -n \
 
 echo $JSON_STRING
 
-echo "${JSON_STRING}" | http POST localhost:8080
+echo "${JSON_STRING}" | http POST localhost:8080/events
