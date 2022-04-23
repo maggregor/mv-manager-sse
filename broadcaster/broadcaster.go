@@ -1,7 +1,9 @@
 package broadcaster
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,6 +15,8 @@ import (
 type Broadcaster struct {
 	Server *sse.Server
 }
+
+type teamNameKey struct{}
 
 func Serve() {
 	server := sse.New()
@@ -46,7 +50,16 @@ func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
 
 func (b *Broadcaster) preHandle1(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		jwt := r.Header.Get("Jwt")
 		log.Println("JWT VALIDATION OF CLIENT")
+		claims, ok := validateAchilioJWT(jwt)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}
+		key := teamNameKey{}
+		ctx := context.WithValue(r.Context(), key, claims["teamName"])
+		r = r.WithContext(ctx)
+		fmt.Println("teamName is", r.Context().Value(key))
 		next.ServeHTTP(w, r)
 	})
 }
