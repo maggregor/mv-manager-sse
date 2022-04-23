@@ -93,5 +93,7 @@ func (b *Broadcaster) pubSubHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("Executing message %v", m.Message.ID)
-	b.Server.Publish(m.Message.Attributes.TeamName, &sse.Event{Data: []byte(m.Message.Attributes.Type)})
+	e := &SseEvent{Event: m.Message.Attributes.Type, ProjectId: m.Message.Attributes.ProjectID}
+	data, _ := json.Marshal(e)
+	b.Server.Publish(m.Message.Attributes.TeamName, &sse.Event{Data: data})
 }
