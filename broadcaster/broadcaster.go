@@ -1,6 +1,8 @@
 package broadcaster
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -22,7 +24,7 @@ func Serve() {
 func (b *Broadcaster) serve() {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/", pubSubHandle)
+	r.HandleFunc("/", b.pubSubHandle)
 	r.HandleFunc("/test", b.testHandler)
 	r.HandleFunc("/events", b.handle)
 	r.Use(b.preHandle1)
@@ -75,4 +77,23 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 
 func (b *Broadcaster) testHandler(w http.ResponseWriter, r *http.Request) {
 	b.Server.Publish("coucou", &sse.Event{Data: []byte("ping")})
+}
+
+// PubSub receives and processes a Pub/Sub push message.
+func (b *Broadcaster) pubSubHandle(w http.ResponseWriter, r *http.Request) {
+	var m PubSubMessage
+	body, err := ioutil.ReadAll(r.Body)
+	log.Printf("%s", string(body))
+	if err != nil {
+		log.Printf("ioutil.ReadAll: %v", err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal(body, &m); err != nil {
+		log.Printf("json.Unmarshal: %v", err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+	log.Printf("Executing message %v", m.Message.ID)
+	b.Server.Publish(m.Message.Attributes.TeamName, &sse.Event{Data: []byte(m.Message.Attributes.Type)})
 }

@@ -1,17 +1,10 @@
 package broadcaster
 
-import (
-	"encoding/json"
-	"io/ioutil"
-	"log"
-	"net/http"
-)
-
 // Attributes is the payload of the attributes field in the message of a Pub/Sub event.
 type Attributes struct {
 	TeamName  string `json:"teamName"`
 	ProjectID string `json:"projectId"`
-	Type      string `json:"type"`
+	Type      string `json:"eventType"`
 }
 
 // Message is the payload of the message field of a Pub/Sub event.
@@ -29,22 +22,4 @@ type Message struct {
 type PubSubMessage struct {
 	Message      Message `json:"message"`
 	Subscription string  `json:"subscription"`
-}
-
-// PubSub receives and processes a Pub/Sub push message.
-func pubSubHandle(w http.ResponseWriter, r *http.Request) {
-	var m PubSubMessage
-	body, err := ioutil.ReadAll(r.Body)
-	log.Printf("%s", string(body))
-	if err != nil {
-		log.Printf("ioutil.ReadAll: %v", err)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-	if err := json.Unmarshal(body, &m); err != nil {
-		log.Printf("json.Unmarshal: %v", err)
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-	log.Printf("Executing message %v", m.Message.ID)
 }
