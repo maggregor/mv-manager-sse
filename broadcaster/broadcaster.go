@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse/v2"
@@ -17,6 +18,8 @@ type Broadcaster struct {
 }
 
 type teamNameKey struct{}
+
+var teamKey teamNameKey
 
 func Serve() {
 	server := sse.New()
@@ -29,12 +32,12 @@ func (b *Broadcaster) serve() {
 	r := mux.NewRouter()
 
 	subscribe := r.PathPrefix("/subscribe").Subrouter()
-	subscribe.Use(b.preHandle1)
+	subscribe.Use(b.validateClientJwt)
 	subscribe.Use(b.loginAndSubscribe)
 	subscribe.HandleFunc("", b.subscribeHandle)
 
 	events := r.PathPrefix("/events").Subrouter()
-	events.Use(b.preHandle2)
+	events.Use(b.validatePubSubJwt)
 	events.HandleFunc("", b.pubSubHandle)
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
@@ -48,23 +51,25 @@ func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
 	b.Server.ServeHTTP(w, r)
 }
 
-func (b *Broadcaster) preHandle1(next http.Handler) http.Handler {
+func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		jwt := r.Header.Get("Jwt")
-		log.Println("JWT VALIDATION OF CLIENT")
+		cookie := strings.Split(r.Header.Get("Cookie"), ";")
+		jwt := getJwtFromCookie(cookie)
+		if jwt == "" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}
 		claims, ok := validateAchilioJWT(jwt)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
-		key := teamNameKey{}
-		ctx := context.WithValue(r.Context(), key, claims["teamName"])
+		ctx := context.WithValue(r.Context(), teamKey, claims["hd"])
 		r = r.WithContext(ctx)
-		fmt.Println("teamName is", r.Context().Value(key))
+		fmt.Println("teamName is", r.Context().Value(teamKey))
 		next.ServeHTTP(w, r)
 	})
 }
 
-func (b *Broadcaster) preHandle2(next http.Handler) http.Handler {
+func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("JWT VALIDATION OF PUBSUB SERVICE ACCOUNT")
 		next.ServeHTTP(w, r)
@@ -74,7 +79,7 @@ func (b *Broadcaster) preHandle2(next http.Handler) http.Handler {
 // Login and set the dedicated stream
 func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		teamName := r.Header.Get("Cookie")
+		teamName := r.Context().Value(teamKey).(string)
 		log.Printf("Client %s logged succesfully", r.RemoteAddr)
 		// Create dedicated stream if it doesn't exists
 		if !b.Server.StreamExists(teamName) {

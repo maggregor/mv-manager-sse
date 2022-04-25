@@ -3,6 +3,7 @@ package broadcaster
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -27,4 +28,14 @@ func validateAchilioJWT(tokenString string) (jwt.MapClaims, bool) {
 		fmt.Println(err)
 		return nil, false
 	}
+}
+
+func getJwtFromCookie(cookie []string) string {
+	for _, c := range cookie {
+		slice := strings.Split(c, "=")
+		if strings.Trim(slice[0], " \t") == "jwt_token" {
+			return slice[1]
+		}
+	}
+	return ""
 }
