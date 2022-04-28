@@ -7,14 +7,22 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse/v2"
+	"google.golang.org/api/idtoken"
 )
+
+type ConfigMap struct {
+	JwtSecret string
+	SAEmail   string
+}
 
 type Broadcaster struct {
 	Server *sse.Server
+	Config *ConfigMap
 }
 
 type teamNameKey struct{}
@@ -22,10 +30,19 @@ type teamNameKey struct{}
 var teamKey teamNameKey
 
 func Serve() {
+	log.Println("starting server")
 	server := sse.New()
 	server.CreateStream("messages")
-	b := Broadcaster{Server: server}
+	c := config()
+	b := Broadcaster{Server: server, Config: c}
 	b.serve()
+}
+
+func config() *ConfigMap {
+	var c ConfigMap
+	c.JwtSecret = os.Getenv("JWT_SECRET")
+	c.SAEmail = os.Getenv("SA_EMAIL")
+	return &c
 }
 
 func (b *Broadcaster) serve() {
@@ -57,10 +74,12 @@ func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
 		jwt := getJwtFromCookie(cookie)
 		if jwt == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
 		}
-		claims, ok := validateAchilioJWT(jwt)
+		claims, ok := validateAchilioJWT(jwt, b.Config.JwtSecret)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
 		}
 		ctx := context.WithValue(r.Context(), teamKey, claims["hd"])
 		r = r.WithContext(ctx)
@@ -72,6 +91,41 @@ func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
 func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("JWT VALIDATION OF PUBSUB SERVICE ACCOUNT")
+		if r.Method != "POST" {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
+		// Get the Cloud Pub/Sub-generated JWT in the "Authorization" header.
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || len(strings.Split(authHeader, " ")) != 2 {
+			http.Error(w, "Missing Authorization header", http.StatusBadRequest)
+			return
+		}
+		token := strings.Split(authHeader, " ")[1]
+
+		// Verify and decode the JWT.
+		// If you don't need to control the HTTP client used you can use the
+		// convenience method idtoken.Validate instead of creating a Validator.
+		payload, err := idtoken.Validate(r.Context(), token, "https://dev.s.achilio.com")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Invalid Token: %v", err), http.StatusBadRequest)
+			return
+		}
+		log.Println(payload.Claims)
+		if payload.Issuer != "accounts.google.com" && payload.Issuer != "https://accounts.google.com" {
+			http.Error(w, "Wrong Issuer", http.StatusBadRequest)
+			return
+		}
+		// IMPORTANT: you should validate claim details not covered by signature
+		// and audience verification above, including:
+		//   - Ensure that `payload.Claims["email"]` is equal to the expected service
+		//     account set up in the push subscription settings.
+		//   - Ensure that `payload.Claims["email_verified"]` is set to true.
+		if payload.Claims["email"] != b.Config.SAEmail || payload.Claims["email_verified"] != true {
+			http.Error(w, "Unexpected email identity", http.StatusBadRequest)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

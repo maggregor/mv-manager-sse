@@ -1,0 +1,28 @@
+steps:
+  # Run tests
+  - name: "golang"
+    id: "go-test"
+    entrypoint: go
+    args:
+      [
+        "test",
+        "-race",
+        "-covermode=atomic",
+        "-coverprofile=coverage.out",
+        "./...",
+      ]
+  - name: "gcr.io/cloud-builders/curl"
+    id: "codecov-report"
+    waitFor: ["go-test"]
+    entrypoint: bash
+    args: ["-c", "bash <(curl -s https://codecov.io/bash)"]
+    env:
+      - "VCS_COMMIT_ID=$COMMIT_SHA"
+      - "VCS_BRANCH_NAME=$BRANCH_NAME"
+      - "VCS_PULL_REQUEST=$_PR_NUMBER"
+      - "CI_BUILD_ID=$BUILD_ID"
+      - "CODECOV_TOKEN=${_CODECOV_TOKEN}" # _CODECOV_TOKEN is user user substituion variable specified in my cloud build trigger
+substitutions:
+  _CODECOV_TOKEN: ""
+options:
+  logging: CLOUD_LOGGING_ONLY

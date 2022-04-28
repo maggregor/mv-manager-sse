@@ -9,11 +9,9 @@ import (
 )
 
 func TestJwtValidationCorrectSecret(t *testing.T) {
-	os.Setenv("JWT_SECRET", "secret")
-	defer os.Unsetenv("JWT_SECRET")
 	tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.Nv24hvNy238QMrpHvYw-BxyCp00jbsTqjVgzk81PiYA"
 
-	claims, ok := validateAchilioJWT(tokenString)
+	claims, ok := validateAchilioJWT(tokenString, "secret")
 	assert.True(t, ok)
 	assert.Equal(t, "bar", claims["foo"])
 }
@@ -23,7 +21,7 @@ func TestJwtValidationIncorrectSecret(t *testing.T) {
 	defer os.Unsetenv("JWT_SECRET")
 	tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.Nv24hvNy238QMrpHvYw-BxyCp00jbsTqjVgzk81PiYA"
 
-	_, ok := validateAchilioJWT(tokenString)
+	_, ok := validateAchilioJWT(tokenString, "wrongSecret")
 	assert.False(t, ok)
 }
 
