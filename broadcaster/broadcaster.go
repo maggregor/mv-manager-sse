@@ -24,6 +24,7 @@ var (
 type ConfigMap struct {
 	JwtSecret string
 	SAEmail   string
+	Audience  string
 }
 
 type Broadcaster struct {
@@ -48,6 +49,7 @@ func config() *ConfigMap {
 	var c ConfigMap
 	c.JwtSecret = os.Getenv("JWT_SECRET")
 	c.SAEmail = os.Getenv("SA_EMAIL")
+	c.Audience = os.Getenv("AUDIENCE")
 	return &c
 }
 
@@ -115,7 +117,7 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		// Verify and decode the JWT.
 		// If you don't need to control the HTTP client used you can use the
 		// convenience method idtoken.Validate instead of creating a Validator.
-		payload, err := idtoken.Validate(r.Context(), token, "")
+		payload, err := idtoken.Validate(r.Context(), token, b.Config.Audience)
 		if err != nil {
 			e := fmt.Sprintf("Invalid Token: %v", err)
 			log.Println(e)

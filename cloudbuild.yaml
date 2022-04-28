@@ -30,6 +30,7 @@ steps:
         "gcr.io/achilio-${_ENV}/mvm-sse",
         "--update-secrets=JWT_SECRET=projects/${PROJECT_NUMBER}/secrets/jwt_secret/versions/latest",
         "--update-env-vars=SA_EMAIL=${_SA_EMAIL}",
+        "--update-env-vars=AUDIENCE=${_AUDIENCE}",
         "--region",
         "europe-west1",
         "--platform",
@@ -44,6 +45,7 @@ images: ["gcr.io/achilio-${_ENV}/mvm-sse"]
 substitutions:
   _ENV: dev
   _SA_EMAIL: ""
+  _AUDIENCE: ""
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: N1_HIGHCPU_8
