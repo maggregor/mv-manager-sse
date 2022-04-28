@@ -34,6 +34,7 @@ steps:
         "europe-west1",
         "--platform",
         "managed",
+        "--allow-unauthenticated",
         "--min-instances=0",
         "--max-instances=1",
         "--service-account",
