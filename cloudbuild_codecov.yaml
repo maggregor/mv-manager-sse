@@ -22,7 +22,5 @@ steps:
       - "VCS_PULL_REQUEST=$_PR_NUMBER"
       - "CI_BUILD_ID=$BUILD_ID"
       - "CODECOV_TOKEN=${_CODECOV_TOKEN}" # _CODECOV_TOKEN is user user substituion variable specified in my cloud build trigger
-substitutions:
-  _CODECOV_TOKEN: ""
 options:
   logging: CLOUD_LOGGING_ONLY
