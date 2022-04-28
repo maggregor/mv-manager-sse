@@ -110,6 +110,7 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 			return
 		}
 		token := strings.Split(authHeader, " ")[1]
+		log.Println(token)
 
 		// Verify and decode the JWT.
 		// If you don't need to control the HTTP client used you can use the
