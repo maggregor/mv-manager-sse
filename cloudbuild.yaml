@@ -29,7 +29,7 @@ steps:
         "--image",
         "gcr.io/achilio-${_ENV}/mvm-sse",
         "--update-secrets=JWT_SECRET=projects/${PROJECT_NUMBER}/secrets/jwt_secret/versions/latest",
-        "--update-env_vars=SA_EMAIL=${_SA_EMAIL}"
+        "--update-env_vars=SA_EMAIL=${_SA_EMAIL}",
         "--region",
         "europe-west1",
         "--platform",
