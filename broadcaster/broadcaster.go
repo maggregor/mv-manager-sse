@@ -115,7 +115,7 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		// Verify and decode the JWT.
 		// If you don't need to control the HTTP client used you can use the
 		// convenience method idtoken.Validate instead of creating a Validator.
-		payload, err := idtoken.Validate(r.Context(), token, "https://dev.s.achilio.com")
+		payload, err := idtoken.Validate(r.Context(), token, "")
 		if err != nil {
 			e := fmt.Sprintf("Invalid Token: %v", err)
 			log.Println(e)
