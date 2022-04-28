@@ -15,6 +15,12 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
+var (
+	WarningLogger *log.Logger
+	InfoLogger    *log.Logger
+	ErrorLogger   *log.Logger
+)
+
 type ConfigMap struct {
 	JwtSecret string
 	SAEmail   string
@@ -92,12 +98,14 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("JWT VALIDATION OF PUBSUB SERVICE ACCOUNT")
 		if r.Method != "POST" {
+			log.Println("error invalid method")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 		// Get the Cloud Pub/Sub-generated JWT in the "Authorization" header.
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || len(strings.Split(authHeader, " ")) != 2 {
+			log.Println("error missing auth header")
 			http.Error(w, "Missing Authorization header", http.StatusBadRequest)
 			return
 		}
@@ -108,12 +116,15 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		// convenience method idtoken.Validate instead of creating a Validator.
 		payload, err := idtoken.Validate(r.Context(), token, "https://dev.s.achilio.com")
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid Token: %v", err), http.StatusBadRequest)
+			e := fmt.Sprintf("Invalid Token: %v", err)
+			log.Println(e)
+			http.Error(w, e, http.StatusBadRequest)
 			return
 		}
 		log.Println(payload.Claims)
 		if payload.Issuer != "accounts.google.com" && payload.Issuer != "https://accounts.google.com" {
-			http.Error(w, "Wrong Issuer", http.StatusBadRequest)
+			log.Println("wrong issuer")
+			http.Error(w, "Wrong Issuer", http.StatusUnauthorized)
 			return
 		}
 		// IMPORTANT: you should validate claim details not covered by signature
@@ -122,7 +133,8 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		//     account set up in the push subscription settings.
 		//   - Ensure that `payload.Claims["email_verified"]` is set to true.
 		if payload.Claims["email"] != b.Config.SAEmail || payload.Claims["email_verified"] != true {
-			http.Error(w, "Unexpected email identity", http.StatusBadRequest)
+			log.Printf("unexpected email identity: got %v, expected %v", payload.Claims["email"], b.Config.SAEmail)
+			http.Error(w, "Unexpected email identity", http.StatusUnauthorized)
 			return
 		}
 
