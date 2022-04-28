@@ -1,7 +1,6 @@
 package broadcaster
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -11,18 +10,23 @@ import (
 func TestJwtValidationCorrectSecret(t *testing.T) {
 	tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.Nv24hvNy238QMrpHvYw-BxyCp00jbsTqjVgzk81PiYA"
 
-	claims, ok := validateAchilioJWT(tokenString, "secret")
-	assert.True(t, ok)
+	claims, err := validateAchilioJWT(tokenString, "secret")
+	assert.Nil(t, err)
 	assert.Equal(t, "bar", claims["foo"])
 }
 
 func TestJwtValidationIncorrectSecret(t *testing.T) {
-	os.Setenv("JWT_SECRET", "wrongSecret")
-	defer os.Unsetenv("JWT_SECRET")
 	tokenString := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.Nv24hvNy238QMrpHvYw-BxyCp00jbsTqjVgzk81PiYA"
 
-	_, ok := validateAchilioJWT(tokenString, "wrongSecret")
-	assert.False(t, ok)
+	_, err := validateAchilioJWT(tokenString, "wrongSecret")
+	assert.NotNil(t, err, "Should be in error")
+}
+
+func TestJwtValidationSignatureAlg(t *testing.T) {
+	tokenString := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJuYmYiOjE0NDQ0Nzg0MDB9.Nv24hvNy238QMrpHvYw-BxyCp00jbsTqjVgzk81PiYA"
+
+	_, err := validateAchilioJWT(tokenString, "secret")
+	assert.NotNil(t, err, "Should be in error")
 }
 
 func TestGetJwtFromCookie(t *testing.T) {

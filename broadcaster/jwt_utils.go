@@ -9,7 +9,7 @@ import (
 
 var hmacSampleSecret []byte
 
-func validateAchilioJWT(tokenString string, tokenSecret string) (jwt.MapClaims, bool) {
+func validateAchilioJWT(tokenString string, tokenSecret string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -22,10 +22,9 @@ func validateAchilioJWT(tokenString string, tokenSecret string) (jwt.MapClaims, 
 	})
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, true
+		return claims, nil
 	} else {
-		fmt.Println(err)
-		return nil, false
+		return nil, err
 	}
 }
 

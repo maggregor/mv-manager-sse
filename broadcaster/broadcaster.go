@@ -37,11 +37,11 @@ type teamNameKey struct{}
 var teamKey teamNameKey
 
 func Serve() {
-	log.Println("starting server")
 	server := sse.New()
 	server.CreateStream("messages")
 	c := config()
 	b := Broadcaster{Server: server, Config: c}
+	InfoLogger.Println("starting server...")
 	b.serve()
 }
 
@@ -50,6 +50,9 @@ func config() *ConfigMap {
 	c.JwtSecret = os.Getenv("JWT_SECRET")
 	c.SAEmail = os.Getenv("SA_EMAIL")
 	c.Audience = os.Getenv("AUDIENCE")
+	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	WarningLogger = log.New(os.Stdout, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
+	ErrorLogger = log.New(os.Stdout, "ERROR :", log.Ldate|log.Ltime|log.Lshortfile)
 	return &c
 }
 
@@ -70,7 +73,7 @@ func (b *Broadcaster) serve() {
 func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-r.Context().Done()
-		log.Printf("Client %s disconnected", r.RemoteAddr)
+		InfoLogger.Printf("Client %s disconnected", r.RemoteAddr)
 	}()
 
 	b.Server.ServeHTTP(w, r)
@@ -84,35 +87,35 @@ func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		claims, ok := validateAchilioJWT(jwt, b.Config.JwtSecret)
-		if !ok {
+		claims, err := validateAchilioJWT(jwt, b.Config.JwtSecret)
+		if err != nil {
+			WarningLogger.Println("Client tried to connect with an invalid JWT")
+			WarningLogger.Println(err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		ctx := context.WithValue(r.Context(), teamKey, claims["hd"])
 		r = r.WithContext(ctx)
-		fmt.Println("teamName is", r.Context().Value(teamKey))
+		InfoLogger.Println("teamName is", r.Context().Value(teamKey))
 		next.ServeHTTP(w, r)
 	})
 }
 
 func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("JWT VALIDATION OF PUBSUB SERVICE ACCOUNT")
 		if r.Method != "POST" {
-			log.Println("error invalid method")
+			ErrorLogger.Println("error invalid method")
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
 		}
 		// Get the Cloud Pub/Sub-generated JWT in the "Authorization" header.
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || len(strings.Split(authHeader, " ")) != 2 {
-			log.Println("error missing auth header")
+			ErrorLogger.Println("error missing auth header")
 			http.Error(w, "Missing Authorization header", http.StatusBadRequest)
 			return
 		}
 		token := strings.Split(authHeader, " ")[1]
-		log.Println(token)
 
 		// Verify and decode the JWT.
 		// If you don't need to control the HTTP client used you can use the
@@ -120,13 +123,12 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		payload, err := idtoken.Validate(r.Context(), token, b.Config.Audience)
 		if err != nil {
 			e := fmt.Sprintf("Invalid Token: %v", err)
-			log.Println(e)
+			ErrorLogger.Println(e)
 			http.Error(w, e, http.StatusBadRequest)
 			return
 		}
-		log.Println(payload.Claims)
 		if payload.Issuer != "accounts.google.com" && payload.Issuer != "https://accounts.google.com" {
-			log.Println("wrong issuer")
+			ErrorLogger.Println("wrong issuer")
 			http.Error(w, "Wrong Issuer", http.StatusUnauthorized)
 			return
 		}
@@ -136,7 +138,7 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		//     account set up in the push subscription settings.
 		//   - Ensure that `payload.Claims["email_verified"]` is set to true.
 		if payload.Claims["email"] != b.Config.SAEmail || payload.Claims["email_verified"] != true {
-			log.Printf("unexpected email identity: got %v, expected %v", payload.Claims["email"], b.Config.SAEmail)
+			ErrorLogger.Printf("unexpected email identity: got %v, expected %v", payload.Claims["email"], b.Config.SAEmail)
 			http.Error(w, "Unexpected email identity", http.StatusUnauthorized)
 			return
 		}
@@ -149,17 +151,17 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		teamName := r.Context().Value(teamKey).(string)
-		log.Printf("Client %s logged succesfully", r.RemoteAddr)
+		InfoLogger.Printf("Client %s logged succesfully", r.RemoteAddr)
 		// Create dedicated stream if it doesn't exists
 		if !b.Server.StreamExists(teamName) {
 			b.Server.CreateStream(teamName)
-			log.Printf("Stream for the team %s created", teamName)
+			InfoLogger.Printf("Stream for the team %s created", teamName)
 		}
 		// Add stream parameter in the URL for the r3labs/sse lib
 		values := r.URL.Query()
 		values.Set("stream", teamName)
 		r.URL.RawQuery = values.Encode()
-		log.Printf("Subscribe %s for the team %s", teamName, r.RemoteAddr)
+		InfoLogger.Printf("Subscribe %s for the team %s", teamName, r.RemoteAddr)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -168,22 +170,22 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 func (b *Broadcaster) pubSubHandle(w http.ResponseWriter, r *http.Request) {
 	var m PubSubMessage
 	body, err := ioutil.ReadAll(r.Body)
-	log.Printf("%s", string(body))
+	InfoLogger.Println(string(body))
 	if err != nil {
-		log.Printf("ioutil.ReadAll: %v", err)
+		ErrorLogger.Printf("ioutil.ReadAll: %v", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 	if err := json.Unmarshal(body, &m); err != nil {
-		log.Printf("json.Unmarshal: %v", err)
+		ErrorLogger.Printf("json.Unmarshal: %v", err)
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	log.Printf("Executing message %v", m.Message.ID)
+	InfoLogger.Printf("Processing message %v", m.Message.ID)
 	e := &SseEvent{Event: m.Message.Attributes.Type, ProjectId: m.Message.Attributes.ProjectID}
 	data, err := json.Marshal(e)
 	if err != nil {
-		log.Printf("Error while serializing event response: %v", err)
+		ErrorLogger.Printf("Error while serializing event response: %v", err)
 	}
 	b.Server.Publish(m.Message.Attributes.TeamName, &sse.Event{Data: data})
 }
