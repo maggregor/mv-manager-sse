@@ -119,7 +119,6 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		if err != nil {
 			e := fmt.Sprintf("Invalid Token: %v", err)
 			log.Println(e)
-			log.Println(payload.Audience)
 			http.Error(w, e, http.StatusBadRequest)
 			return
 		}
