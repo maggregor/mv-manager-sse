@@ -38,10 +38,8 @@ var teamKey teamNameKey
 
 func Serve() {
 	server := sse.New()
-	server.CreateStream("messages")
 	c := config()
 	b := Broadcaster{Server: server, Config: c}
-	InfoLogger.Println("starting server...")
 	b.serve()
 }
 
@@ -52,7 +50,7 @@ func config() *ConfigMap {
 	c.Audience = os.Getenv("AUDIENCE")
 	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	WarningLogger = log.New(os.Stdout, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	ErrorLogger = log.New(os.Stdout, "ERROR :", log.Ldate|log.Ltime|log.Lshortfile)
+	ErrorLogger = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	return &c
 }
 
@@ -67,6 +65,7 @@ func (b *Broadcaster) serve() {
 	events := r.PathPrefix("/events").Subrouter()
 	events.Use(b.validatePubSubJwt)
 	events.HandleFunc("", b.pubSubHandle)
+	InfoLogger.Println("starting server on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
@@ -111,8 +110,8 @@ func (b *Broadcaster) validatePubSubJwt(next http.Handler) http.Handler {
 		// Get the Cloud Pub/Sub-generated JWT in the "Authorization" header.
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || len(strings.Split(authHeader, " ")) != 2 {
-			ErrorLogger.Println("error missing auth header")
-			http.Error(w, "Missing Authorization header", http.StatusBadRequest)
+			ErrorLogger.Println("error missing or malformed auth header")
+			http.Error(w, "Missing or malformed Authorization header", http.StatusBadRequest)
 			return
 		}
 		token := strings.Split(authHeader, " ")[1]
