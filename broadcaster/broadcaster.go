@@ -63,6 +63,7 @@ func (b *Broadcaster) serve() {
 	subscribe.HandleFunc("", b.subscribeHandle)
 
 	events := r.PathPrefix("/events").Subrouter()
+	events.Use(mux.CORSMethodMiddleware(r))
 	events.Use(b.validatePubSubJwt)
 	events.HandleFunc("", b.pubSubHandle)
 	InfoLogger.Println("starting server on port 8080...")
