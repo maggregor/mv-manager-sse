@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse/v2"
 	"google.golang.org/api/idtoken"
@@ -63,11 +64,13 @@ func (b *Broadcaster) serve() {
 	subscribe.HandleFunc("", b.subscribeHandle)
 
 	events := r.PathPrefix("/events").Subrouter()
-	events.Use(mux.CORSMethodMiddleware(r))
 	events.Use(b.validatePubSubJwt)
 	events.HandleFunc("", b.pubSubHandle)
 	InfoLogger.Println("starting server on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	originsOk := handlers.AllowedOrigins([]string{os.Getenv("ALLOWED_ORIGIN")})
+	credentialsOk := handlers.AllowCredentials()
+
+	log.Fatal(http.ListenAndServe(":8080", handlers.CORS(originsOk, credentialsOk)(r)))
 }
 
 func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
