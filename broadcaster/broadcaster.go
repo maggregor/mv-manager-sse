@@ -25,6 +25,8 @@ type ConfigMap struct {
 	JwtSecret string
 	SAEmail   string
 	Audience  string
+	Env       string
+	Port      string
 }
 
 type Broadcaster struct {
@@ -48,6 +50,11 @@ func config() *ConfigMap {
 	c.JwtSecret = os.Getenv("JWT_SECRET")
 	c.SAEmail = os.Getenv("SA_EMAIL")
 	c.Audience = os.Getenv("AUDIENCE")
+	c.Env = os.Getenv("ENV")
+	c.Port = os.Getenv("PORT")
+	if c.Port == "" {
+		c.Port = "8080"
+	}
 	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	WarningLogger = log.New(os.Stdout, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
 	ErrorLogger = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -63,10 +70,13 @@ func (b *Broadcaster) serve() {
 	subscribe.HandleFunc("", b.subscribeHandle)
 
 	events := r.PathPrefix("/events").Subrouter()
-	events.Use(b.validatePubSubJwt)
+	if b.Config.Env != "local" {
+		events.Use(b.validatePubSubJwt)
+	}
 	events.HandleFunc("", b.pubSubHandle)
-	InfoLogger.Println("starting server on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	InfoLogger.Printf("starting server on port %s...", b.Config.Port)
+	addr := fmt.Sprintf(":%s", b.Config.Port)
+	log.Fatal(http.ListenAndServe(addr, r))
 }
 
 func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +106,7 @@ func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), teamKey, claims["hd"])
 		r = r.WithContext(ctx)
 		InfoLogger.Println("teamName is", r.Context().Value(teamKey))
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -161,6 +172,7 @@ func (b *Broadcaster) loginAndSubscribe(next http.Handler) http.Handler {
 		values.Set("stream", teamName)
 		r.URL.RawQuery = values.Encode()
 		InfoLogger.Printf("Subscribe %s for the team %s", teamName, r.RemoteAddr)
+
 		next.ServeHTTP(w, r)
 	})
 }

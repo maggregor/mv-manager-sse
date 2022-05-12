@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -18,11 +19,16 @@ func TestE2ETestSuite(t *testing.T) {
 }
 
 func (s *e2eTestSuite) SetupSuite() {
-
 	os.Setenv("JWT_SECRET", "secret")
 	go Serve()
-
+	time.Sleep(1 * time.Second)
 }
+
+// func (s *e2eTestSuite) TearDownSuite() {
+// 	// command := fmt.Sprintf("lsof -i tcp:%s | grep LISTEN | awk '{print $2}' | xargs kill -9", "8080")
+// 	// cmd := exec.Command("bash", "-c", command)
+// 	// cmd.Run()
+// }
 
 func (s *e2eTestSuite) TestSubscribe() {
 	req, err := http.NewRequest("GET", "http://localhost:8080/subscribe", nil)
