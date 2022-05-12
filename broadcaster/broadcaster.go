@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse/v2"
 	"google.golang.org/api/idtoken"
@@ -76,7 +77,10 @@ func (b *Broadcaster) serve() {
 	events.HandleFunc("", b.pubSubHandle)
 	InfoLogger.Printf("starting server on port %s...", b.Config.Port)
 	addr := fmt.Sprintf(":%s", b.Config.Port)
-	log.Fatal(http.ListenAndServe(addr, r))
+	originsOk := handlers.AllowedOrigins([]string{os.Getenv("ALLOWED_ORIGIN")})
+	credentialsOk := handlers.AllowCredentials()
+
+	log.Fatal(http.ListenAndServe(addr, handlers.CORS(originsOk, credentialsOk)(r)))
 }
 
 func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {

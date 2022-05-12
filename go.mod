@@ -6,8 +6,10 @@ require github.com/stretchr/testify v1.7.1
 
 require (
 	cloud.google.com/go/compute v1.6.0 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/gorilla/handlers v1.5.1 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
