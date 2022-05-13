@@ -86,18 +86,13 @@ func (b *Broadcaster) serve() {
 func (b *Broadcaster) subscribeHandle(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		<-r.Context().Done()
-		s := b.getStream(r)
+		// Get Stream and clear event logs
+		s := b.Server.Streams[r.Context().Value(teamKey).(string)]
 		s.Eventlog.Clear()
 		InfoLogger.Printf("Client %s disconnected", r.RemoteAddr)
 	}()
 
 	b.Server.ServeHTTP(w, r)
-}
-
-func (b *Broadcaster) getStream(r *http.Request) *sse.Stream {
-	t := r.Context().Value(teamKey).(string)
-	s := b.Server.Streams[t]
-	return s
 }
 
 func (b *Broadcaster) validateClientJwt(next http.Handler) http.Handler {
