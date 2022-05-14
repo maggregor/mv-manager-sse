@@ -3,6 +3,7 @@ package broadcaster
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -41,17 +42,26 @@ var teamKey teamNameKey
 
 func Serve() {
 	server := sse.New()
-	c := config()
+	c, err := config()
+	if err != nil {
+		log.Fatalf("Error while loading config: %v", err)
+	}
 	b := Broadcaster{Server: server, Config: c}
 	b.serve()
 }
 
-func config() *ConfigMap {
+func config() (*ConfigMap, error) {
 	var c ConfigMap
 	c.JwtSecret = os.Getenv("JWT_SECRET")
+	if c.JwtSecret == "" {
+		return &c, errors.New("JWT Secret is empty")
+	}
 	c.SAEmail = os.Getenv("SA_EMAIL")
 	c.Audience = os.Getenv("AUDIENCE")
 	c.Env = os.Getenv("ENV")
+	if c.Env != "local" && (c.SAEmail == "" || c.Audience == "") {
+		return &c, errors.New("audience or SA Email is empty")
+	}
 	c.Port = os.Getenv("PORT")
 	if c.Port == "" {
 		c.Port = "8080"
@@ -59,7 +69,7 @@ func config() *ConfigMap {
 	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	WarningLogger = log.New(os.Stdout, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
 	ErrorLogger = log.New(os.Stdout, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
-	return &c
+	return &c, nil
 }
 
 func (b *Broadcaster) serve() {
