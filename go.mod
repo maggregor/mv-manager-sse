@@ -24,6 +24,7 @@ require (
 	github.com/davecgh/go-spew v1.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
+	github.com/joho/godotenv v1.4.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/r3labs/sse/v2 v2.7.7 // indirect
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5 // indirect
