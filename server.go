@@ -2,10 +2,9 @@ package main
 
 import (
 	p "github.com/achilio/mv-manager-sse/broadcaster"
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func main() {
-	godotenv.Load()
 	p.Serve()
 }
