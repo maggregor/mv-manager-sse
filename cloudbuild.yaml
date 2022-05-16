@@ -1,0 +1,53 @@
+steps:
+  # Run tests
+  - name: "golang"
+    id: "go-test"
+    entrypoint: go
+    args:
+      [
+        "test",
+        "-race",
+        "-covermode=atomic",
+        "-coverprofile=coverage.out",
+        "./...",
+      ]
+  # Build the container image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "gcr.io/achilio-${_ENV}/mvm-sse", "."]
+  # Push the container image to Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/achilio-${_ENV}/mvm-sse"]
+  # Deploy container image to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "beta",
+        "run",
+        "deploy",
+        "mvm-sse",
+        "--image",
+        "gcr.io/achilio-${_ENV}/mvm-sse",
+        "--update-secrets=JWT_SECRET=projects/${PROJECT_NUMBER}/secrets/jwt_secret/versions/latest",
+        "--update-env-vars=SA_EMAIL=${_SA_EMAIL}",
+        "--update-env-vars=AUDIENCE=${_AUDIENCE}",
+        "--update-env-vars=ALLOWED_ORIGIN=${_ALLOWED_ORIGIN}",
+        "--region",
+        "europe-west1",
+        "--platform",
+        "managed",
+        "--allow-unauthenticated",
+        "--min-instances=0",
+        "--max-instances=1",
+        "--service-account",
+        "sse-cloudrun@${PROJECT_ID}.iam.gserviceaccount.com",
+      ]
+images: ["gcr.io/achilio-${_ENV}/mvm-sse"]
+substitutions:
+  _ENV: dev
+  _SA_EMAIL: ""
+  _AUDIENCE: ""
+  _ALLOWED_ORIGIN: ""
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: N1_HIGHCPU_8
