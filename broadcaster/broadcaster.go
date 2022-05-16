@@ -24,11 +24,12 @@ var (
 )
 
 type ConfigMap struct {
-	JwtSecret string
-	SAEmail   string
-	Audience  string
-	Env       string
-	Port      string
+	JwtSecret     string
+	SAEmail       string
+	Audience      string
+	Env           string
+	Port          string
+	AllowedOrigin string
 }
 
 type Broadcaster struct {
@@ -59,12 +60,19 @@ func config() (*ConfigMap, error) {
 	c.SAEmail = os.Getenv("SA_EMAIL")
 	c.Audience = os.Getenv("AUDIENCE")
 	c.Env = os.Getenv("ENV")
+	if c.Env == "" {
+		c.Env = "local"
+	}
 	if c.Env != "local" && (c.SAEmail == "" || c.Audience == "") {
 		return &c, errors.New("audience or SA Email is empty")
 	}
 	c.Port = os.Getenv("PORT")
 	if c.Port == "" {
 		c.Port = "8080"
+	}
+	c.AllowedOrigin = os.Getenv("ALLOWED_ORIGIN")
+	if c.AllowedOrigin == "" {
+		c.AllowedOrigin = "http://localhost:8081"
 	}
 	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	WarningLogger = log.New(os.Stdout, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -87,7 +95,7 @@ func (b *Broadcaster) serve() {
 	events.HandleFunc("", b.pubSubHandle)
 	InfoLogger.Printf("starting server on port %s...", b.Config.Port)
 	addr := fmt.Sprintf(":%s", b.Config.Port)
-	originsOk := handlers.AllowedOrigins([]string{os.Getenv("ALLOWED_ORIGIN")})
+	originsOk := handlers.AllowedOrigins([]string{b.Config.AllowedOrigin})
 	credentialsOk := handlers.AllowCredentials()
 
 	log.Fatal(http.ListenAndServe(addr, handlers.CORS(originsOk, credentialsOk)(r)))

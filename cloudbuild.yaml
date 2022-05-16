@@ -31,6 +31,7 @@ steps:
         "--update-secrets=JWT_SECRET=projects/${PROJECT_NUMBER}/secrets/jwt_secret/versions/latest",
         "--update-env-vars=SA_EMAIL=${_SA_EMAIL}",
         "--update-env-vars=AUDIENCE=${_AUDIENCE}",
+        "--update-env-vars=ALLOWED_ORIGIN=${_ALLOWED_ORIGIN}",
         "--region",
         "europe-west1",
         "--platform",
@@ -46,6 +47,7 @@ substitutions:
   _ENV: dev
   _SA_EMAIL: ""
   _AUDIENCE: ""
+  _ALLOWED_ORIGIN: ""
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: N1_HIGHCPU_8
